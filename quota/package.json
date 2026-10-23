@@ -1,0 +1,31 @@
+{
+  "name": "omp-plugin-quota",
+  "version": "0.1.0",
+  "description": "Show authenticated subscription quota (Codex, Antigravity, and other usage-reporting providers) in the Oh My Pi status line",
+  "type": "module",
+  "main": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc -p . --noEmit"
+  },
+  "keywords": [
+    "omp",
+    "oh-my-pi",
+    "statusline",
+    "quota",
+    "usage",
+    "codex",
+    "antigravity"
+  ],
+  "author": "",
+  "license": "MIT",
+  "omp": {
+    "extensions": [
+      "./src/index.ts"
+    ]
+  },
+  "devDependencies": {
+    "@oh-my-pi/pi-coding-agent": "^18.12.6",
+    "@types/bun": "^1.2.0",
+    "typescript": "^5.0.0"
+  }
+}
