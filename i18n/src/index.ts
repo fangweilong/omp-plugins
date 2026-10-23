@@ -6,9 +6,21 @@ import { injector } from "./injector.js";
 import { loadLocaleBundle } from "./locales/index.js";
 import { registerLangCommand } from "./commands/lang.js";
 import { hookHotkeysUi } from "./hotkeys.js";
+import { installUiPatches } from "./ui/patches.js";
+
+const ACTIVATED_KEY = Symbol.for("omp.i18n.activated");
 
 export default function activate(pi: ExtensionAPI): void {
+  // omp can load one plugin through both `extensions:` and a linked plugin
+  // directory; the second load would register duplicate handlers and wrap the
+  // same host prototypes twice.
+  const host = globalThis as unknown as Record<symbol, boolean | undefined>;
+  if (host[ACTIVATED_KEY]) return;
+  host[ACTIVATED_KEY] = true;
+
   const config = loadConfig();
+  // Install render-time UI translations before any component paints.
+  installUiPatches(config.locale);
   const allSettings = (all ? all() : []) as unknown as SettingHandleRaw[];
   const piPkg = (pi as unknown as { pi?: Record<string, unknown> }).pi;
 

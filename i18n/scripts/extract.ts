@@ -169,5 +169,31 @@ export default function extract(pi: ExtensionAPI): void {
     );
   }
 
+  // Render-time UI text: keep en/ as an identity baseline of every phrase key so
+  // `bun run check` can report missing translations.
+  const zhUiTextPath = path.join(zhDir, "ui-text.json");
+  if (fs.existsSync(zhUiTextPath)) {
+    try {
+      const zhUiText = JSON.parse(fs.readFileSync(zhUiTextPath, "utf-8")) as Record<
+        string,
+        Record<string, string> | undefined
+      >;
+      const identity = (section: string): Record<string, string> =>
+        Object.fromEntries(Object.keys(zhUiText[section] ?? {}).map(key => [key, key]));
+      const enUiText = {
+        phrases: identity("phrases"),
+        chromePhrases: identity("chromePhrases"),
+        prefixes: identity("prefixes"),
+        toolLabels: identity("toolLabels"),
+      };
+      fs.writeFileSync(path.join(enDir, "ui-text.json"), JSON.stringify(enUiText, null, 2), "utf-8");
+      console.log(
+        `[i18n-extract] Wrote en/ui-text.json (${Object.keys(enUiText.phrases).length} phrases, ${Object.keys(enUiText.toolLabels).length} tool labels)`
+      );
+    } catch (err) {
+      console.warn("[i18n-extract] Could not sync en/ui-text.json:", err);
+    }
+  }
+
   console.log("[i18n-extract] Extraction completed successfully!");
 }

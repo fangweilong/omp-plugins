@@ -21,6 +21,25 @@ export interface SettingSnapshot {
   options?: SettingOptionI18n[];
 }
 
+export interface UiTextPattern {
+  /** Anchored regular expression matched against one complete UI string. */
+  match: string;
+  /** Replacement, with `$1`-style group references. */
+  replace: string;
+}
+
+/** Render-time UI strings for host TUI components (labels, hints, statuses). */
+export interface UiTextDictionary {
+  /** Phrases safe to replace anywhere, including tool output rows. */
+  phrases?: Record<string, string>;
+  /** Chrome-only labels that are too common to rewrite inside command output. */
+  chromePhrases?: Record<string, string>;
+  prefixes?: Record<string, string>;
+  patterns?: UiTextPattern[];
+  /** English tool label → localized tool card title. */
+  toolLabels?: Record<string, string>;
+}
+
 export interface LocaleBundle {
   settings: Record<string, SettingTranslation>;
   tabs: Record<string, string>;
@@ -30,6 +49,7 @@ export interface LocaleBundle {
   keybindings: Record<string, string>;
   agents: Record<string, string>;
   tools: Record<string, string>;
+  uiText: UiTextDictionary;
 }
 
 export interface I18nPluginConfig {

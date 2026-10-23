@@ -61,8 +61,12 @@ export function loadLocaleBundle(locale: SupportedLocale, forceReload = false): 
     path.join(localeDir, "tools.json"),
     {}
   );
+  const uiText = safeReadJson<LocaleBundle["uiText"]>(
+    path.join(localeDir, "ui-text.json"),
+    {}
+  );
 
-  const bundle: LocaleBundle = { settings, tabs, groups, ui, commands, keybindings, agents, tools };
+  const bundle: LocaleBundle = { settings, tabs, groups, ui, commands, keybindings, agents, tools, uiText };
   bundleCache.set(locale, bundle);
   return bundle;
 }

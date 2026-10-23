@@ -65,6 +65,64 @@ function runCheck(): void {
       console.log(` - ${k}`);
     }
   }
+
+  reportUiText();
+}
+
+interface UiTextFile {
+  phrases?: Record<string, string>;
+  chromePhrases?: Record<string, string>;
+  prefixes?: Record<string, string>;
+  patterns?: Array<{ match: string; replace: string }>;
+  toolLabels?: Record<string, string>;
+}
+
+function reportUiText(): void {
+  const enPath = path.join(enDir, "ui-text.json");
+  const zhPath = path.join(zhDir, "ui-text.json");
+  if (!fs.existsSync(zhPath)) {
+    console.log("[ui-text] No zh-CN/ui-text.json found; skipping runtime UI coverage.");
+    return;
+  }
+  const zh = JSON.parse(fs.readFileSync(zhPath, "utf-8")) as UiTextFile;
+  const en = fs.existsSync(enPath) ? (JSON.parse(fs.readFileSync(enPath, "utf-8")) as UiTextFile) : {};
+
+  const sections: Array<[string, Record<string, string> | undefined, Record<string, string> | undefined]> = [
+    ["Phrases", zh.phrases, en.phrases],
+    ["Chrome phrases", zh.chromePhrases, en.chromePhrases],
+    ["Prefixes", zh.prefixes, en.prefixes],
+    ["Tool labels", zh.toolLabels, en.toolLabels],
+  ];
+  console.log("==========================================");
+  console.log("        Runtime UI text coverage          ");
+  console.log("==========================================");
+  for (const [name, zhSection, enSection] of sections) {
+    const keys = Object.keys(zhSection ?? {});
+    const baseline = Object.keys(enSection ?? {});
+    const missing = baseline.filter(key => !(key in (zhSection ?? {})));
+    const untranslated = keys.filter(key => {
+      const value = zhSection?.[key];
+      return !value || value.trim() === "" || value === key;
+    });
+    console.log(
+      `${name}: ${keys.length} keys, ${untranslated.length} untranslated, ${missing.length} missing vs en baseline`
+    );
+    for (const key of [...untranslated, ...missing].slice(0, 10)) console.log(` - ${key}`);
+  }
+
+  const patterns = zh.patterns ?? [];
+  let invalid = 0;
+  for (const pattern of patterns) {
+    try {
+      new RegExp(pattern.match);
+      if (!pattern.replace) invalid++;
+    } catch {
+      invalid++;
+      console.log(` - invalid pattern: ${pattern.match}`);
+    }
+  }
+  console.log(`Patterns: ${patterns.length}, ${invalid} invalid`);
+  console.log("==========================================");
 }
 
 runCheck();

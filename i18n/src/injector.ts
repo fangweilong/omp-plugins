@@ -7,6 +7,8 @@ import type {
   SupportedLocale,
 } from "./types.js";
 import { loadLocaleBundle } from "./locales/index.js";
+import { applySettingsTabs } from "./ui/patches.js";
+import { bumpUiEpoch, setUiLocale } from "./ui/locale-state.js";
 
 function safeSetProperty(target: object, prop: string, value: unknown): boolean {
   try {
@@ -43,6 +45,8 @@ function safeSetProperty(target: object, prop: string, value: unknown): boolean 
 export class SettingsInjector {
   private currentLocale: SupportedLocale = "en";
   private initialized = false;
+  /** `def.ui.group` as it was before localization, keyed by setting id. */
+  private originalGroups = new Map<string, string>();
 
   public getCurrentLocale(): SupportedLocale {
     return this.currentLocale;
@@ -84,6 +88,10 @@ export class SettingsInjector {
   public init(allSettings: SettingHandleRaw[]): void {
     if (this.initialized) return;
     this.initialized = true;
+    for (const setting of allSettings) {
+      const group = setting.definition.ui?.group;
+      if (group) this.originalGroups.set(setting.id, group);
+    }
   }
 
   public restore(allSettings: SettingHandleRaw[]): void {
@@ -112,8 +120,9 @@ export class SettingsInjector {
         }
       }
 
-      if (def.ui?.group && enBundle.groups[def.ui.group]) {
-        safeSetProperty(def.ui, "group", enBundle.groups[def.ui.group]);
+      const originalGroup = this.originalGroups.get(s.id);
+      if (def.ui && originalGroup !== undefined) {
+        safeSetProperty(def.ui, "group", originalGroup);
       }
     }
   }
@@ -125,6 +134,9 @@ export class SettingsInjector {
     forceReload = false
   ): { appliedCount: number; totalCount: number } {
     this.init(allSettings);
+    if (forceReload) bumpUiEpoch();
+    setUiLocale(locale);
+    applySettingsTabs(locale);
 
     // Apply Keybindings & Agents
     if (piPkg) {
