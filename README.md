@@ -7,14 +7,12 @@ Oh My Pi（`omp`，`@oh-my-pi/pi-coding-agent`）扩展插件集合，每个子�
 | 插件 | 说明 | 文档 |
 |---|---|---|
 | [`i18n`](./i18n) | 配置项多语言注入：settings / tabs / groups / 枚举 / 斜杠命令 / `/hotkeys` / agents / tools，支持 `zh-CN` 与 `en` 运行时热切换（`/lang`） | [README](./i18n/README.md) |
-| [`jump`](./jump) | 消息导航：`Alt+J` 打开全屏置顶用户消息索引 + 转录副本，点击消息跳转到对应位置 | [README](./jump/README.md) |
 
 ## 安装
 
 ```bash
 # 方式一：链接到 omp 插件目录
 omp plugin link ./i18n
-omp plugin link ./jump
 
 # 方式二：单次挂载
 omp --extension ./i18n/src/index.ts
