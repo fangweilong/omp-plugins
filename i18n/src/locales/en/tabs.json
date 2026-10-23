@@ -1,0 +1,12 @@
+{
+  "interaction": "interaction",
+  "tasks": "tasks",
+  "tools": "tools",
+  "model": "model",
+  "context": "context",
+  "memory": "memory",
+  "shell": "shell",
+  "files": "files",
+  "appearance": "appearance",
+  "providers": "providers"
+}

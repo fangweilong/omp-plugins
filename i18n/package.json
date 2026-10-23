@@ -1,0 +1,29 @@
+{
+  "name": "omp-plugin-i18n",
+  "version": "0.1.0",
+  "description": "Multi-language injection plugin for Oh My Pi (omp) configuration items and settings",
+  "type": "module",
+  "main": "./src/index.ts",
+  "scripts": {
+    "extract": "omp -p \"extract\" --extension ./scripts/extract.ts",
+    "check": "bun ./scripts/check.ts"
+  },
+  "keywords": [
+    "omp",
+    "oh-my-pi",
+    "i18n",
+    "localization",
+    "plugin"
+  ],
+  "author": "",
+  "license": "MIT",
+  "omp": {
+    "extensions": [
+      "./src/index.ts"
+    ]
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.0.0"
+  }
+}

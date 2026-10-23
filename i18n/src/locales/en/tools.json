@@ -1,0 +1,20 @@
+{
+  "read": "Read file contents with line selectors, image rendering, and code outline summaries",
+  "bash": "Execute bash commands in a persistent shell with service supervision",
+  "edit": "Edit files with precise line-anchored patches and fuzzy matching",
+  "write": "Write full file contents (creates or overwrites)",
+  "grep": "Search file contents using fast Rust/PCRE2 regular expressions",
+  "glob": "Find files matching glob patterns",
+  "lsp": "Language server protocol (code navigation, definitions, diagnostics)",
+  "python": "Execute Python cells in a persistent IPython kernel",
+  "browser": "Browser automation and page interaction with Puppeteer",
+  "computer": "Host desktop screen capture and native keyboard/mouse input",
+  "task": "Spawn concurrent subagents for delegated multi-step tasks",
+  "todo": "Manage multi-phase task breakdown and progress tracking",
+  "web_search": "Search the web using search providers",
+  "ask": "Prompt user with interactive choice options in the terminal",
+  "wait": "Wait for background jobs or subagents to deliver results",
+  "debug": "Interactive step-debugging with Debug Adapter Protocol (DAP)",
+  "ast_edit": "Structural refactoring using AST-aware syntax rewrites",
+  "ast_grep": "Search code using AST syntax patterns"
+}
