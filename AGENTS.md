@@ -41,7 +41,7 @@ cd i18n && bun run check     # 检查翻译覆盖率
 
 ## jump 插件要点
 
-- `/jump` 打开全屏导航器（备用屏），内容为打开瞬间的会话快照，不修改会话；`esc` 关闭后焦点回到编辑器。
+- `/jump`（及快捷键 `Alt+J`）打开全屏导航器（备用屏），内容为打开瞬间的会话快照，不修改会话；`esc` 关闭后焦点回到编辑器。
 - `transcript.ts` 只负责“条目 → 行数组 + 用户消息锚点”，`navigator.ts` 只负责布局、滚动与输入；新增消息类型改前者的渲染分支。
 - 全屏覆盖层的渲染行号即屏幕行号（0 基），鼠标命中测试直接按 `render()` 的行索引计算；一次点击会同时收到按下与释放两条 SGR 报告，必须逐条解析同一输入块。
 - 内置 UI 行为参考宿主 `packages/tui/src/overlays/rewind-selector.ts`（同样的全屏 `showOverlay` 模式）；本插件自行渲染转录行，未复用 `ChatTranscriptBuilder`。

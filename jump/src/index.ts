@@ -1,8 +1,8 @@
-import type { ExtensionAPI, ExtensionCommandContext } from "@oh-my-pi/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext } from "@oh-my-pi/pi-coding-agent";
 import { NavigatorComponent } from "./navigator.js";
 import type { EntryLike } from "./transcript.js";
 
-async function openNavigator(ctx: ExtensionCommandContext): Promise<void> {
+async function openNavigator(ctx: ExtensionContext): Promise<void> {
 	if (ctx.mode !== "tui" || !ctx.hasUI) {
 		ctx.ui.notify("消息导航仅在交互式终端中可用", "warning");
 		return;
@@ -29,6 +29,10 @@ async function openNavigator(ctx: ExtensionCommandContext): Promise<void> {
 }
 
 export default function activate(pi: ExtensionAPI): void {
+	pi.registerShortcut("alt+j", {
+		description: "打开消息导航：置顶列出本会话用户消息，点击跳转到对应位置",
+		handler: ctx => openNavigator(ctx),
+	});
 	pi.registerCommand("jump", {
 		description: "打开消息导航：置顶列出本会话用户消息，点击跳转到对应位置",
 		handler: (_args, ctx) => openNavigator(ctx),
