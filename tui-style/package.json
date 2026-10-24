@@ -1,0 +1,27 @@
+{
+  "name": "omp-plugin-tui-style",
+  "version": "0.1.0",
+  "description": "TUI style overrides for Oh My Pi: high-contrast user message bubbles",
+  "type": "module",
+  "main": "./src/index.ts",
+  "scripts": {
+    "check": "tsc --noEmit"
+  },
+  "keywords": [
+    "omp",
+    "oh-my-pi",
+    "tui",
+    "theme",
+    "plugin"
+  ],
+  "license": "MIT",
+  "omp": {
+    "extensions": [
+      "./src/index.ts"
+    ]
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.0.0"
+  }
+}
