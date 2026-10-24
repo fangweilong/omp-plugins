@@ -53,6 +53,7 @@ const LIMIT_SHORT: Record<string, string> = {
 
 const ANSI = {
   dim: "\x1b[2m",
+  cyan: "\x1b[36m",
   boldCyan: "\x1b[1;36m",
   green: "\x1b[32m",
   yellow: "\x1b[33m",
@@ -71,16 +72,23 @@ export function formatStatus(
   reports: readonly CachedUsageReport[],
   config: QuotaConfig,
   now: number = Date.now(),
+  activeProvider?: string,
 ): string | undefined {
   const quotas = collectQuotas(filterRecentReports(reports, config.staleAfterMinutes))
     .filter((quota) => quota.windows.length > 0 || (config.showCredits && quota.credits !== undefined))
     .filter((quota) => config.providers === "auto" || config.providers.includes(quota.provider))
-    .sort((left, right) => maxUsed(right) - maxUsed(left))
+    // The subscription behind the selected model always leads; remaining providers
+    // follow by pressure so a nearly exhausted one still stays visible.
+    .sort(
+      (left, right) =>
+        Number(right.provider === activeProvider) - Number(left.provider === activeProvider) ||
+        maxUsed(right) - maxUsed(left),
+    )
     .slice(0, config.maxProviders);
 
   if (quotas.length === 0) return undefined;
   const row = quotas
-    .map((quota) => formatProvider(quota, config, now))
+    .map((quota, index) => formatProvider(quota, config, now, index === 0 ? "primary" : "compact"))
     .join(`${SP}${style("\u2502", ANSI.dim, config.color)}${SP}`);
   // Leading whitespace is stripped by the hook-status sanitizer, so a zero-width
   // space anchors the first visible cell and lets the NBSP indent survive.
@@ -155,24 +163,22 @@ function mergeLimits(quota: ProviderQuota, report: UsageReport): void {
   }
 }
 
-function formatProvider(quota: ProviderQuota, config: QuotaConfig, now: number): string {
-  // Keep the top-N riskiest windows, then render them in chronological order so
-  // repeated redraws do not reshuffle columns.
-  const windows = [...quota.windows]
-    .sort((left, right) => right.used - left.used || WINDOW_ORDER[left.window] - WINDOW_ORDER[right.window])
-    .slice(0, config.maxWindowsPerProvider)
-    .sort((left, right) => WINDOW_ORDER[left.window] - WINDOW_ORDER[right.window] || right.used - left.used);
-  // Only disambiguate when one window carries several labels (e.g. Antigravity's
-  // Gemini vs 3P weekly); providers with one label per window read better bare.
-  const labelsByWindow = new Map<WindowClass, Set<string>>();
-  for (const entry of windows) {
-    const labels = labelsByWindow.get(entry.window) ?? new Set<string>();
-    labels.add(entry.label);
-    labelsByWindow.set(entry.window, labels);
-  }
-  const multipleLabels = [...labelsByWindow.values()].some((labels) => labels.size > 1);
-  const labelWidth = multipleLabels ? Math.min(3, Math.max(...windows.map((entry) => entry.label.length))) : 0;
+type Emphasis = "primary" | "compact";
 
+function formatProvider(
+  quota: ProviderQuota,
+  config: QuotaConfig,
+  now: number,
+  emphasis: Emphasis,
+): string {
+  const { windows, multipleLabels } = selectWindows(quota, config);
+  const name = config.providerName === "short" ? shortProviderLabel(quota.provider) : providerName(quota.provider);
+  // The active subscription is the reference reading, so it keeps full detail;
+  // every other provider collapses to its tightest window to keep the row scannable.
+  const label = style(name, emphasis === "primary" ? ANSI.boldCyan : ANSI.cyan, config.color);
+  if (emphasis === "compact") return `${label}${SP}${formatCompactWindows(quota, windows, multipleLabels, config, now)}`;
+
+  const labelWidth = multipleLabels ? Math.min(3, Math.max(...windows.map((entry) => entry.label.length))) : 0;
   const parts = windows.map((entry) => {
     const head = multipleLabels
       ? `${entry.label.slice(0, labelWidth).padEnd(labelWidth)} ${WINDOW_LABEL[entry.window]}`
@@ -186,14 +192,71 @@ function formatProvider(quota: ProviderQuota, config: QuotaConfig, now: number):
   if (config.showCredits && quota.credits !== undefined) {
     parts.push(style(`${formatNumber(quota.credits)} cr`, ANSI.dim, config.color));
   }
-  const name = config.providerName === "short" ? shortProviderLabel(quota.provider) : providerName(quota.provider);
-  const label = style(name, ANSI.boldCyan, config.color);
-  const refreshedAt = refreshText(quota.fetchedAt, config, now);
-  const ageWarn = quota.fetchedAt !== undefined && now - quota.fetchedAt > config.staleAfterMinutes * 60_000;
-  const stamp = refreshedAt
-    ? `${style("\u00b7", ANSI.dim, config.color)}${SP}${style(refreshedAt, ageWarn ? ANSI.yellow : ANSI.dim, config.color)}`
-    : "";
-  return `${label}${stamp ? `${SP}${stamp}` : ""}${SP.repeat(2)}${parts.join(`${SP}${style("\u00b7", ANSI.dim, config.color)}${SP}`)}`;
+  const stamp = staleStamp(quota.fetchedAt, config, now);
+  const stampText = stamp ? `${style("\u00b7", ANSI.dim, config.color)}${SP}${style(stamp, ANSI.yellow, config.color)}` : "";
+  return `${label}${stampText ? `${SP}${stampText}` : ""}${SP.repeat(2)}${parts.join(`${SP}${style("\u00b7", ANSI.dim, config.color)}${SP}`)}`;
+}
+
+function formatCompactWindows(
+  quota: ProviderQuota,
+  windows: readonly WindowQuota[],
+  multipleLabels: boolean,
+  config: QuotaConfig,
+  now: number,
+): string {
+  const tightest = [...windows].sort(
+    (left, right) => right.used - left.used || WINDOW_ORDER[left.window] - WINDOW_ORDER[right.window],
+  )[0];
+  const parts: string[] = [];
+  if (tightest) {
+    const head = multipleLabels
+      ? `${tightest.label} ${WINDOW_LABEL[tightest.window]}`
+      : WINDOW_LABEL[tightest.window];
+    parts.push(
+      `${style(head, ANSI.dim, config.color)}${SP}${style(formatPercent(tightest.used), healthColor(tightest.used), config.color)}`,
+    );
+    const reset = config.showResets ? resetText(tightest.resetsAt, now) : "";
+    if (reset) parts.push(style(reset, ANSI.dim, config.color));
+  }
+  if (config.showCredits && quota.credits !== undefined) {
+    parts.push(style(`${formatNumber(quota.credits)} cr`, ANSI.dim, config.color));
+  }
+  return parts.join(SP);
+}
+
+/** Keep the top-N riskiest windows, rendered in chronological order so redraws keep columns stable. */
+function selectWindows(
+  quota: ProviderQuota,
+  config: QuotaConfig,
+): { windows: WindowQuota[]; multipleLabels: boolean } {
+  const windows = [...quota.windows]
+    .sort((left, right) => right.used - left.used || WINDOW_ORDER[left.window] - WINDOW_ORDER[right.window])
+    .slice(0, config.maxWindowsPerProvider)
+    .sort((left, right) => WINDOW_ORDER[left.window] - WINDOW_ORDER[right.window] || right.used - left.used);
+  // Only disambiguate when one window carries several labels (e.g. Antigravity's
+  // Gemini vs 3P weekly); providers with one label per window read better bare.
+  const labelsByWindow = new Map<WindowClass, Set<string>>();
+  for (const entry of windows) {
+    const labels = labelsByWindow.get(entry.window) ?? new Set<string>();
+    labels.add(entry.label);
+    labelsByWindow.set(entry.window, labels);
+  }
+  const multipleLabels = [...labelsByWindow.values()].some((labels) => labels.size > 1);
+  return { windows, multipleLabels };
+}
+
+/** Fresh snapshots show no age at all; only a cache-served snapshot gets a yellow `~` stamp. */
+function staleStamp(fetchedAt: number | undefined, config: QuotaConfig, now: number): string | undefined {
+  if (config.refreshTime === "off" || typeof fetchedAt !== "number" || !Number.isFinite(fetchedAt)) {
+    return undefined;
+  }
+  if (now - fetchedAt <= config.staleAfterMinutes * 60_000) return undefined;
+  if (config.refreshTime === "clock") {
+    const date = new Date(fetchedAt);
+    const time = `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+    return `~${now - fetchedAt > 24 * 3_600_000 ? `${date.getMonth() + 1}/${date.getDate()} ${time}` : time}`;
+  }
+  return `~${ageText(fetchedAt, now) ?? "?"}`;
 }
 
 function usedFraction(limit: UsageLimit): number | undefined {
@@ -259,18 +322,6 @@ function filterRecentReports(
     if (latest === undefined || typeof report.fetchedAt !== "number") return true;
     return latest - report.fetchedAt <= windowMs;
   });
-}
-
-function refreshText(fetchedAt: number | undefined, config: QuotaConfig, now: number): string | undefined {
-  if (config.refreshTime === "off" || typeof fetchedAt !== "number" || !Number.isFinite(fetchedAt)) {
-    return undefined;
-  }
-  if (config.refreshTime === "clock") {
-    const date = new Date(fetchedAt);
-    const time = `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
-    return now - fetchedAt > 24 * 3_600_000 ? `${date.getMonth() + 1}/${date.getDate()} ${time}` : time;
-  }
-  return `${ageText(fetchedAt, now) ?? "?"} ago`;
 }
 
 function ageText(fetchedAt: number | undefined, now: number): string | undefined {

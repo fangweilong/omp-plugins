@@ -23,7 +23,7 @@ export default function activate(pi: ExtensionAPI): void {
     if (!eligible(ctx)) return undefined;
     let text: string | undefined;
     try {
-      text = formatStatus(reader.read(), config);
+      text = formatStatus(reader.read(), config, Date.now(), sessionProvider(ctx));
       loggedFailure = false;
     } catch (error) {
       // A locked or migrating agent.db must never take the session down; retry on
@@ -100,6 +100,33 @@ export default function activate(pi: ExtensionAPI): void {
       ctx.ui.notify(formatDetails(reports), "info");
     },
   });
+}
+
+/**
+ * Provider of the model the session is actually running.
+ *
+ * The context handed to `session_start` can still resolve `model`/`models.current()`
+ * to the default provider until the restored model is applied on the first turn, so
+ * the session transcript — which already carries the restored `model_change` entry —
+ * is the primary source and keeps the quota row correct from the first paint.
+ */
+function sessionProvider(ctx: ExtensionContext): string | undefined {
+  try {
+    const branch = ctx.sessionManager.getBranch();
+    for (let index = branch.length - 1; index >= 0; index -= 1) {
+      const entry = branch[index];
+      if (entry.type !== "model_change") continue;
+      // Role models (smol/slow/temporary retry fallback) are chosen per task,
+      // not the subscription the session is running on.
+      if (entry.role !== undefined && entry.role !== "default") continue;
+      const slash = entry.model.indexOf("/");
+      if (slash > 0) return entry.model.slice(0, slash);
+      break;
+    }
+  } catch {
+    // Session history is best-effort; the registry facade below is the fallback.
+  }
+  return ctx.models?.current()?.provider ?? ctx.model?.provider;
 }
 
 async function refreshNow(
